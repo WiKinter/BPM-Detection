@@ -14,14 +14,30 @@
           },
           {
             "Type": "TextArea",
-            "Name": "textArea1",
-            "X": 178,
-            "Y": 110,
-            "Width": 124,
-            "Height": 41,
-            "TextId": "__SingleUse_ZPAO",
+            "Name": "textArea2",
+            "X": 217,
+            "Y": 116,
+            "Width": 85,
+            "Height": 47,
+            "TextId": "__SingleUse_TVCR",
             "TextRotation": "0",
             "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea1",
+            "X": 102,
+            "Y": 116,
+            "Width": 115,
+            "Height": 47,
+            "TextId": "__SingleUse_M3NQ",
+            "TextRotation": "0",
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "__SingleUse_FAL4",
+              "UseBuffer": true,
+              "BufferSize": 8
+            }
           }
         ],
         "Interactions": []

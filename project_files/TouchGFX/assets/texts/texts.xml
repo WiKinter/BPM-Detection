@@ -6,14 +6,21 @@
   <Texts>
     <TextGroup Id="Group1" />
     <TextGroup Id="Unsorted">
-      <Text Id="__SingleUse_ZPAO" Alignment="Left" TypographyId="Large">
-        <Translation Language="GB">0 BPM</Translation>
+      <Text Id="__SingleUse_FAL4" Alignment="Left" TypographyId="bpm">
+        <Translation Language="GB">999.9</Translation>
+      </Text>
+      <Text Id="__SingleUse_M3NQ" Alignment="Center" TypographyId="bpm">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="__SingleUse_TVCR" Alignment="Left" TypographyId="Large">
+        <Translation Language="GB">BPM</Translation>
       </Text>
     </TextGroup>
   </Texts>
   <Typographies>
-    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" />
+    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" />
+    <Typography Id="bpm" Font="verdana.ttf" Size="40" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" WildcardCharacters=".," WildcardCharacterRanges="0-9" />
   </Typographies>
 </TextDatabase>
