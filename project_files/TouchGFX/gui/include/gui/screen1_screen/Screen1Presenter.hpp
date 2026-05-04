@@ -24,6 +24,7 @@ public:
      * (ie. made inactive). Teardown functionality can be placed here.
      */
     virtual void deactivate();
+    void setNewBPMValue(int val);
 
     virtual ~Screen1Presenter() {}
 
