@@ -12,7 +12,7 @@
       <Text Id="__SingleUse_F7JY" Alignment="Left" TypographyId="Large">
         <Translation Language="GB">BPM</Translation>
       </Text>
-      <Text Id="__SingleUse_HUSR" Alignment="Left" TypographyId="BPM">
+      <Text Id="__SingleUse_HUSR" Alignment="Right" TypographyId="BPM">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
     </TextGroup>

@@ -140,42 +140,7 @@ static HAL_StatusTypeDef I2Cx_WriteMultiple(I2C_HandleTypeDef* i2c_handler,
     return status;
 }
 
-/**
-  * @brief  Writes a single data.
-  * @param  Addr: I2C address
-  * @param  Reg: Reg address
-  * @param  Value: Data to be written
-  * @retval None
-  */
-void TS_IO_Write(uint8_t Addr, uint8_t Reg, uint8_t Value)
-{
-    I2Cx_WriteMultiple(&hi2c3, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, (uint8_t*)&Value, 1);
-}
 
-/**
-  * @brief  Reads a single data.
-  * @param  Addr: I2C address
-  * @param  Reg: Reg address
-  * @retval Data to be read
-  */
-uint8_t TS_IO_Read(uint8_t Addr, uint8_t Reg)
-{
-    uint8_t read_value = 0;
-
-    I2Cx_ReadMultiple(&hi2c3, Addr, Reg, I2C_MEMADD_SIZE_8BIT, (uint8_t*)&read_value, 1);
-
-    return read_value;
-}
-
-/**
-  * @brief  TS delay
-  * @param  Delay: Delay in ms
-  * @retval None
-  */
-void TS_IO_Delay(uint32_t Delay)
-{
-    HAL_Delay(Delay);
-}
 
 /* USER CODE END STM32TouchController */
 
