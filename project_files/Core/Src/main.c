@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "shared_data.h"
+#include "audio_in.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -137,7 +138,8 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 	bpmValue = 500;
-  /* USER CODE END 1 */
+	AUDIO_IN_Init();
+	/* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
