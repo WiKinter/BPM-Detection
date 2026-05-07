@@ -21,6 +21,6 @@
     <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" />
-    <Typography Id="bpm" Font="verdana.ttf" Size="40" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" WildcardCharacters=".," WildcardCharacterRanges="0-9" />
+    <Typography Id="bpm" Font="verdana.ttf" Size="100" Bpp="4" IsVector="no" Direction="LTR" FallbackCharacter="?" WildcardCharacters=".," WildcardCharacterRanges="0-9" />
   </Typographies>
 </TextDatabase>

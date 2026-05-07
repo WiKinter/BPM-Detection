@@ -9,29 +9,39 @@
             "Name": "scalableImage1",
             "Width": 480,
             "Height": 272,
-            "Filename": "images.png",
+            "Filename": "black_background.png",
             "ScalingAlgorithm": "Nearest-neighbor"
           },
           {
             "Type": "TextArea",
             "Name": "textArea2",
-            "X": 217,
-            "Y": 116,
+            "X": 355,
+            "Y": 136,
             "Width": 85,
-            "Height": 47,
+            "Height": 40,
             "TextId": "__SingleUse_TVCR",
             "TextRotation": "0",
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
             "AutoSize": true
           },
           {
             "Type": "TextArea",
             "Name": "textArea1",
-            "X": 102,
-            "Y": 116,
-            "Width": 115,
-            "Height": 47,
+            "X": 50,
+            "Y": 77,
+            "Width": 292,
+            "Height": 118,
             "TextId": "__SingleUse_M3NQ",
             "TextRotation": "0",
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
             "AutoSize": true,
             "Wildcard1": {
               "TextId": "__SingleUse_FAL4",
