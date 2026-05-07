@@ -6,45 +6,55 @@
         "Components": [
           {
             "Type": "ScalableImage",
-            "Name": "scalableImage1",
+            "Name": "background",
             "Width": 480,
             "Height": 272,
-            "Filename": "images.png",
+            "Filename": "black_background.png",
             "ScalingAlgorithm": "Nearest-neighbor"
           },
           {
             "Type": "TextArea",
-            "Name": "textArea2",
-            "X": 217,
-            "Y": 116,
-            "Width": 85,
-            "Height": 47,
-            "TextId": "__SingleUse_TVCR",
+            "Name": "textArea1",
+            "X": 52,
+            "Y": 77,
+            "Width": 292,
+            "Height": 118,
+            "TextId": "__SingleUse_HUSR",
             "TextRotation": "0",
-            "AutoSize": true
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "__SingleUse_UDJZ",
+              "UseBuffer": true,
+              "BufferSize": 16
+            }
           },
           {
             "Type": "TextArea",
-            "Name": "textArea1",
-            "X": 102,
-            "Y": 116,
-            "Width": 115,
-            "Height": 47,
-            "TextId": "__SingleUse_M3NQ",
+            "Name": "textArea2",
+            "X": 357,
+            "Y": 136,
+            "Width": 85,
+            "Height": 40,
+            "TextId": "__SingleUse_F7JY",
             "TextRotation": "0",
-            "AutoSize": true,
-            "Wildcard1": {
-              "TextId": "__SingleUse_FAL4",
-              "UseBuffer": true,
-              "BufferSize": 8
-            }
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": []
       }
     ],
     "CustomContainerDefinitions": [],
-    "Name": "MyApplication",
+    "Name": "MyApplication_1",
     "Resolution": {
       "Width": 480,
       "Height": 272
@@ -103,6 +113,6 @@
       "Video"
     ]
   },
-  "Version": "4.26.1",
-  "CreatedBy": "4.26.1"
+  "Version": "4.25.0",
+  "CreatedBy": "4.25.0"
 }

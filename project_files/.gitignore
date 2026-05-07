@@ -36,4 +36,4 @@ MDK-ARM/*.out
 MDK-ARM/*vguix.*
 
 # CMake
-build/*
+build/

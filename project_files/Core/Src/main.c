@@ -136,7 +136,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	bpmValue = 9999;
+	bpmValue = 500;
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -179,7 +179,7 @@ int main(void)
   /* Call PreOsInit function */
   MX_TouchGFX_PreOSInit();
   /* USER CODE BEGIN 2 */
-  //presenter->setNewBPMValue(5);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */

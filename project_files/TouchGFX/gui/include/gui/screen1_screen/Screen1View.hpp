@@ -5,6 +5,7 @@
 #include <gui/screen1_screen/Screen1Presenter.hpp>
 #include "shared_data.h"
 
+
 class Screen1View : public Screen1ViewBase
 {
 public:
