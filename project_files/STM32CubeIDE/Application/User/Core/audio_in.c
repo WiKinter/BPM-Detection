@@ -9,7 +9,6 @@ static uint32_t AudioFreq = AUDIO_FREQUENCY_44K;
 void AUDIO_IN_Init(void)
 {
     BSP_AUDIO_IN_Init(
-        INPUT_DEVICE_INPUT_LINE_1,
         AudioFreq,
         DEFAULT_AUDIO_IN_BIT_RESOLUTION,
         DEFAULT_AUDIO_IN_CHANNEL_NBR
