@@ -25,8 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "shared_data.h"
 #include "audio_in.h"
+#include "shared_data.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,6 +78,8 @@ LTDC_HandleTypeDef hltdc;
 QSPI_HandleTypeDef hqspi;
 
 SAI_HandleTypeDef hsai_BlockA2;
+SAI_HandleTypeDef hsai_BlockB2;
+DMA_HandleTypeDef hdma_sai2_b;
 
 UART_HandleTypeDef huart4;
 
@@ -113,14 +115,15 @@ void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_CRC_Init(void);
 static void MX_DMA2D_Init(void);
 static void MX_FMC_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_QUADSPI_Init(void);
-static void MX_SAI2_Init(void);
 static void MX_UART4_Init(void);
+static void MX_SAI2_Init(void);
 void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
 extern void videoTaskFunc(void *argument);
@@ -144,7 +147,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	bpmValue = 500;
+	//bpmValue = 500;
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -164,7 +167,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-	AUDIO_IN_Init();
 
   /* USER CODE END Init */
 
@@ -180,6 +182,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_CRC_Init();
   MX_DMA2D_Init();
   MX_FMC_Init();
@@ -187,12 +190,13 @@ int main(void)
   MX_LTDC_Init();
   MX_QUADSPI_Init();
   MX_LIBJPEG_Init();
-  MX_SAI2_Init();
   MX_UART4_Init();
+  MX_SAI2_Init();
   MX_TouchGFX_Init();
   /* Call PreOsInit function */
   MX_TouchGFX_PreOSInit();
   /* USER CODE BEGIN 2 */
+  printf("TESTPOINT1\n");
 
   /* USER CODE END 2 */
 
@@ -240,6 +244,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -311,14 +316,13 @@ void PeriphCommonClock_Config(void)
 
   /** Initializes the peripherals clock
   */
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_SAI2;
-  PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
-  PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
-  PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
-  PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
-  PeriphClkInitStruct.PLLSAIDivQ = 1;
-  PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_8;
-  PeriphClkInitStruct.Sai2ClockSelection = RCC_SAI2CLKSOURCE_PLLSAI;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI2;
+  PeriphClkInitStruct.PLLI2S.PLLI2SN = 100;
+  PeriphClkInitStruct.PLLI2S.PLLI2SP = RCC_PLLP_DIV2;
+  PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
+  PeriphClkInitStruct.PLLI2S.PLLI2SQ = 2;
+  PeriphClkInitStruct.PLLI2SDivQ = 1;
+  PeriphClkInitStruct.Sai2ClockSelection = RCC_SAI2CLKSOURCE_PLLI2S;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -584,6 +588,32 @@ static void MX_SAI2_Init(void)
   {
     Error_Handler();
   }
+  hsai_BlockB2.Instance = SAI2_Block_B;
+  hsai_BlockB2.Init.Protocol = SAI_FREE_PROTOCOL;
+  hsai_BlockB2.Init.AudioMode = SAI_MODESLAVE_RX;
+  hsai_BlockB2.Init.DataSize = SAI_DATASIZE_8;
+  hsai_BlockB2.Init.FirstBit = SAI_FIRSTBIT_MSB;
+  hsai_BlockB2.Init.ClockStrobing = SAI_CLOCKSTROBING_FALLINGEDGE;
+  hsai_BlockB2.Init.Synchro = SAI_SYNCHRONOUS;
+  hsai_BlockB2.Init.OutputDrive = SAI_OUTPUTDRIVE_DISABLE;
+  hsai_BlockB2.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_EMPTY;
+  hsai_BlockB2.Init.SynchroExt = SAI_SYNCEXT_DISABLE;
+  hsai_BlockB2.Init.MonoStereoMode = SAI_STEREOMODE;
+  hsai_BlockB2.Init.CompandingMode = SAI_NOCOMPANDING;
+  hsai_BlockB2.Init.TriState = SAI_OUTPUT_NOTRELEASED;
+  hsai_BlockB2.FrameInit.FrameLength = 8;
+  hsai_BlockB2.FrameInit.ActiveFrameLength = 1;
+  hsai_BlockB2.FrameInit.FSDefinition = SAI_FS_STARTFRAME;
+  hsai_BlockB2.FrameInit.FSPolarity = SAI_FS_ACTIVE_LOW;
+  hsai_BlockB2.FrameInit.FSOffset = SAI_FS_FIRSTBIT;
+  hsai_BlockB2.SlotInit.FirstBitOffset = 0;
+  hsai_BlockB2.SlotInit.SlotSize = SAI_SLOTSIZE_DATASIZE;
+  hsai_BlockB2.SlotInit.SlotNumber = 1;
+  hsai_BlockB2.SlotInit.SlotActive = 0x00000000;
+  if (HAL_SAI_Init(&hsai_BlockB2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN SAI2_Init 2 */
 
   /* USER CODE END SAI2_Init 2 */
@@ -622,6 +652,22 @@ static void MX_UART4_Init(void)
   /* USER CODE BEGIN UART4_Init 2 */
 
   /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
 }
 
@@ -878,10 +924,42 @@ void EnableMemoryMappedMode(uint8_t manufacturer_id)
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
+    extern volatile uint8_t audioDataReadyFlag;
+    extern int16_t audioBuffer[];
+
+    AUDIO_IN_Init();
+    AUDIO_IN_Start();
+    bpmValue = 100; // Test baseline
+
   /* Infinite loop */
   for(;;)
   {
-    osDelay(100);
+      if (audioDataReadyFlag > 0)
+      {
+            int start_idx = (audioDataReadyFlag == 1) ? 0 : (AUDIO_BUFFER_SIZE / 2);
+            int end_idx   = (audioDataReadyFlag == 1) ? (AUDIO_BUFFER_SIZE / 2) : AUDIO_BUFFER_SIZE;
+            // Clear the flag immediately so we don't double-process
+            audioDataReadyFlag = 0;
+
+            int16_t maxPeak = 0;
+
+            for (int i = start_idx; i < end_idx; i++)
+            {
+              int16_t sample = audioBuffer[i];
+
+              if (sample < 0) {
+                sample = -sample; // Absolute value
+              }
+
+              if (sample > maxPeak) {
+                maxPeak = sample;
+              }
+            }
+
+            bpmValue = maxPeak;
+      }
+
+      osDelay(1);
   }
   /* USER CODE END 5 */
 }
