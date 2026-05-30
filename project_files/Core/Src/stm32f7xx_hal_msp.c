@@ -215,6 +215,9 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
 
     /* Peripheral clock enable */
     __HAL_RCC_I2C3_CLK_ENABLE();
+    /* I2C3 interrupt Init */
+    HAL_NVIC_SetPriority(I2C3_ER_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(I2C3_ER_IRQn);
     /* USER CODE BEGIN I2C3_MspInit 1 */
 
     /* USER CODE END I2C3_MspInit 1 */
@@ -247,6 +250,8 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 
     HAL_GPIO_DeInit(GPIOH, GPIO_PIN_8);
 
+    /* I2C3 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(I2C3_ER_IRQn);
     /* USER CODE BEGIN I2C3_MspDeInit 1 */
 
     /* USER CODE END I2C3_MspDeInit 1 */
@@ -263,11 +268,27 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 void HAL_LTDC_MspInit(LTDC_HandleTypeDef* hltdc)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
   if(hltdc->Instance==LTDC)
   {
     /* USER CODE BEGIN LTDC_MspInit 0 */
 
     /* USER CODE END LTDC_MspInit 0 */
+
+  /** Initializes the peripherals clock
+  */
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
+    PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
+    PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
+    PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
+    PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
+    PeriphClkInitStruct.PLLSAIDivQ = 1;
+    PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_8;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
     /* Peripheral clock enable */
     __HAL_RCC_LTDC_CLK_ENABLE();
 
@@ -807,6 +828,8 @@ void HAL_SDRAM_MspDeInit(SDRAM_HandleTypeDef* hsdram){
   /* USER CODE END SDRAM_MspDeInit 1 */
 }
 
+extern DMA_HandleTypeDef hdma_sai2_b;
+
 static uint32_t SAI2_client =0;
 
 void HAL_SAI_MspInit(SAI_HandleTypeDef* hsai)
@@ -820,6 +843,10 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* hsai)
     if (SAI2_client == 0)
     {
        __HAL_RCC_SAI2_CLK_ENABLE();
+
+    /* Peripheral interrupt init*/
+    HAL_NVIC_SetPriority(SAI2_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(SAI2_IRQn);
     }
     SAI2_client ++;
 
@@ -836,6 +863,51 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* hsai)
     HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
 
     }
+    if(hsai->Instance==SAI2_Block_B)
+    {
+      /* Peripheral clock enable */
+      if (SAI2_client == 0)
+      {
+       __HAL_RCC_SAI2_CLK_ENABLE();
+
+      /* Peripheral interrupt init*/
+      HAL_NVIC_SetPriority(SAI2_IRQn, 5, 0);
+      HAL_NVIC_EnableIRQ(SAI2_IRQn);
+      }
+    SAI2_client ++;
+
+    /**SAI2_B_Block_B GPIO Configuration
+    PG10     ------> SAI2_SD_B
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_10;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF10_SAI2;
+    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+      /* Peripheral DMA init*/
+
+    hdma_sai2_b.Instance = DMA2_Stream7;
+    hdma_sai2_b.Init.Channel = DMA_CHANNEL_0;
+    hdma_sai2_b.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_sai2_b.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_sai2_b.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_sai2_b.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+    hdma_sai2_b.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+    hdma_sai2_b.Init.Mode = DMA_CIRCULAR;
+    hdma_sai2_b.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_sai2_b.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    if (HAL_DMA_Init(&hdma_sai2_b) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* Several peripheral DMA handle pointers point to the same DMA handle.
+     Be aware that there is only one stream to perform all the requested DMAs. */
+    __HAL_LINKDMA(hsai,hdmarx,hdma_sai2_b);
+    __HAL_LINKDMA(hsai,hdmatx,hdma_sai2_b);
+    }
 }
 
 void HAL_SAI_MspDeInit(SAI_HandleTypeDef* hsai)
@@ -848,6 +920,8 @@ void HAL_SAI_MspDeInit(SAI_HandleTypeDef* hsai)
       {
       /* Peripheral clock disable */
        __HAL_RCC_SAI2_CLK_DISABLE();
+      /* SAI2 interrupt DeInit */
+      HAL_NVIC_DisableIRQ(SAI2_IRQn);
       }
 
     /**SAI2_A_Block_A GPIO Configuration
@@ -857,6 +931,26 @@ void HAL_SAI_MspDeInit(SAI_HandleTypeDef* hsai)
     */
     HAL_GPIO_DeInit(GPIOI, GPIO_PIN_5|GPIO_PIN_7|GPIO_PIN_6);
 
+    }
+    if(hsai->Instance==SAI2_Block_B)
+    {
+    SAI2_client --;
+      if (SAI2_client == 0)
+      {
+      /* Peripheral clock disable */
+      __HAL_RCC_SAI2_CLK_DISABLE();
+    /* SAI2 interrupt DeInit */
+      HAL_NVIC_DisableIRQ(SAI2_IRQn);
+      }
+
+    /**SAI2_B_Block_B GPIO Configuration
+    PG10     ------> SAI2_SD_B
+    */
+    HAL_GPIO_DeInit(GPIOG, GPIO_PIN_10);
+
+    /* SAI2 DMA Deinit */
+    HAL_DMA_DeInit(hsai->hdmarx);
+    HAL_DMA_DeInit(hsai->hdmatx);
     }
 }
 

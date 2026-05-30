@@ -666,7 +666,7 @@ __weak void BSP_AUDIO_OUT_ClockConfig(SAI_HandleTypeDef *hsai, uint32_t AudioFre
     rcc_ex_clk_init_struct.PLLI2S.PLLI2SQ = 2;
     rcc_ex_clk_init_struct.PLLI2SDivQ = 19;
     
-    HAL_RCCEx_PeriphCLKConfig(&rcc_ex_clk_init_struct);
+    //HAL_RCCEx_PeriphCLKConfig(&rcc_ex_clk_init_struct);
     
   }
   else /* AUDIO_FREQUENCY_8K, AUDIO_FREQUENCY_16K, AUDIO_FREQUENCY_48K), AUDIO_FREQUENCY_96K */
