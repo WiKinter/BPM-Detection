@@ -943,18 +943,17 @@ void StartDefaultTask(void *argument)
     uint8_t  energyIdx = 0;
     uint32_t energySum = 0;
 
-    // --- BPM-Glättung (Median-ähnlich: Ringpuffer + Mittelwert) ---
+    // --- BPM-Glättung (Ringpuffer + Mittelwert) ---
     #define BPM_AVG_SIZE  4
     uint32_t intervalHistory[BPM_AVG_SIZE] = {0};
-    uint8_t  intervalIdx     = 0;
-    uint8_t  intervalCount   = 0;  // wie viele gültige Werte bisher
+    uint8_t  intervalIdx   = 0;
+    uint8_t  intervalCount = 0;
 
     // Refractory: Mindestabstand zwischen zwei Beats
-    const uint32_t MIN_BEAT_INTERVAL_MS  = 300;  // ~200 BPM max
-    const uint32_t MAX_BEAT_INTERVAL_MS  = 2000; // ~30 BPM min
+    const uint32_t MIN_BEAT_INTERVAL_MS = 300;   // ~200 BPM max
+    const uint32_t MAX_BEAT_INTERVAL_MS = 2000;  // ~30 BPM min
 
-    // Threshold-Faktor: Beat wenn aktuelle Energie > Faktor * gleitender Mittelwert
-    // 1.5f bedeutet: Signal muss 50% über dem Durchschnitt liegen
+    // Threshold-Faktor: Signal muss X-fach über dem Durchschnitt liegen
     const float THRESHOLD_FACTOR = 1.5f;
 
   /* Infinite loop */
@@ -976,17 +975,16 @@ void StartDefaultTask(void *argument)
             uint32_t currentEnergy = (uint32_t)(blockEnergy / ((end_idx - start_idx) / 4));
 
             // --- 2. Gleitenden Durchschnitt der Energie aktualisieren ---
-            energySum -= energyHistory[energyIdx];   // alten Wert rausrechnen
+            energySum -= energyHistory[energyIdx];
             energyHistory[energyIdx] = currentEnergy;
-            energySum += currentEnergy;              // neuen Wert reinrechnen
+            energySum += currentEnergy;
             energyIdx = (energyIdx + 1) % ENERGY_AVG_SIZE;
 
             uint32_t avgEnergy = energySum / ENERGY_AVG_SIZE;
 
-            // --- 3. Dynamischer Threshold: aktuell > Faktor * Durchschnitt ---
-            //        Mindest-Schwelle verhindert Trigger bei absolutem Stille-Rauschen
+            // --- 3. Dynamischer Threshold ---
             uint32_t dynamicThreshold = (uint32_t)(avgEnergy * THRESHOLD_FACTOR);
-            const uint32_t MIN_NOISE_FLOOR = 100; // anpassen je nach Mikrofon-Rauschen
+            const uint32_t MIN_NOISE_FLOOR = 100;
             uint8_t aboveThreshold = (currentEnergy > dynamicThreshold) &&
                                      (currentEnergy > MIN_NOISE_FLOOR);
 
@@ -1005,12 +1003,10 @@ void StartDefaultTask(void *argument)
                     if (interval >= MIN_BEAT_INTERVAL_MS &&
                         interval <= MAX_BEAT_INTERVAL_MS)
                     {
-                        // Interval in Ringpuffer schreiben
                         intervalHistory[intervalIdx] = interval;
                         intervalIdx = (intervalIdx + 1) % BPM_AVG_SIZE;
                         if (intervalCount < BPM_AVG_SIZE) intervalCount++;
 
-                        // BPM aus gemitteltem Interval berechnen
                         uint32_t intervalSum = 0;
                         for (uint8_t k = 0; k < intervalCount; k++)
                             intervalSum += intervalHistory[k];
@@ -1027,9 +1023,8 @@ void StartDefaultTask(void *argument)
                 currFallingEdge = now;
                 inPulse = 0;
 
-                // --- Midpoint-BPM (auskommentiert, zum späteren Aktivieren) ---
                 /*
-                uint32_t currMidPoint  = (currRisingEdge + currFallingEdge) / 2;
+                uint32_t currMidPoint = (currRisingEdge + currFallingEdge) / 2;
 
                 if (lastMidPoint != 0)
                 {
