@@ -937,6 +937,13 @@ void StartDefaultTask(void *argument)
     uint32_t lastBeatTime = 0;
     uint32_t averageEnergy = 0;
 
+    // --- Edge Detection State ---
+    uint32_t lastRisingEdge  = osKernelGetTickCount();
+    uint32_t lastFallingEdge = lastRisingEdge;
+    uint32_t currRisingEdge  = lastRisingEdge;
+    uint32_t currFallingEdge = lastRisingEdge;
+    uint32_t lastMidPoint    = lastRisingEdge;
+
     // Limits based on human BPM ranges (e.g., 30 BPM to ~200 BPM)
     const uint32_t MIN_BEAT_INTERVAL_MS = 300;  // Max ~200 BPM
     const uint32_t MAX_BEAT_INTERVAL_MS = 5000; // Min ~30 BPM
@@ -973,6 +980,11 @@ void StartDefaultTask(void *argument)
             uint32_t currentEnergy = blockEnergy / (AUDIO_BUFFER_SIZE / 2);
             //uint32_t threash = (currentEnergy/ 100) & 0xFF00;
             uint32_t threash = (currentEnergy) & 0xF700;
+
+            if(threash > 0 && prevBuffer == 0){
+            	uint32_t risingEdge = osKernelGetTickCount();
+            }
+
             if(threash > 0 && prevBuffer == 0){
             	uint32_t currTime = osKernelGetTickCount();
             	bpmValue = 600000 / (currTime - lastBeatTime);
