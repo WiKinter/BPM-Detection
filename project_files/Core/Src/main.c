@@ -926,32 +926,24 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN 5 */
     extern volatile uint8_t audioDataReadyFlag;
     extern int16_t audioBuffer[];
-    // Assuming bpmValue is declared globally somewhere
-    // extern uint16_t bpmValue;
 
     AUDIO_IN_Init();
     AUDIO_IN_Start();
-    bpmValue = 0; // Test baseline, scaled by 10 (100.0 BPM)
-
-    // --- BPM Algorithm State Variables ---
-    uint32_t lastBeatTime = 0;
-    uint32_t averageEnergy = 0;
+    bpmValue = 0;
 
     // --- Edge Detection State ---
-    uint32_t lastRisingEdge  = osKernelGetTickCount();
-    uint32_t lastFallingEdge = lastRisingEdge;
-    uint32_t currRisingEdge  = lastRisingEdge;
-    uint32_t currFallingEdge = lastRisingEdge;
-    uint32_t lastMidPoint    = lastRisingEdge;
+    uint32_t lastRisingEdge  = 0;
+    uint32_t lastFallingEdge = 0;
+    uint32_t currRisingEdge  = 0;
+    uint32_t currFallingEdge = 0;
+    uint32_t lastMidPoint    = 0;
 
-    // Limits based on human BPM ranges (e.g., 30 BPM to ~200 BPM)
-    const uint32_t MIN_BEAT_INTERVAL_MS = 300;  // Max ~200 BPM
-    const uint32_t MAX_BEAT_INTERVAL_MS = 5000; // Min ~30 BPM
+    // 0 = idle, 1 = inside pulse (above threshold)
+    uint8_t inPulse = 0;
 
-    // BPM Smoothing History
-    #define BPM_HISTORY_SIZE 4
-    uint32_t bpmHistory[BPM_HISTORY_SIZE] = {0};
-    uint8_t bpmIdx = 0;
+    // Refractory time to avoid double-detection
+    const uint32_t MIN_BEAT_INTERVAL_MS = 100;
+
     int prevBuffer = 0;
 
   /* Infinite loop */
@@ -962,42 +954,64 @@ void StartDefaultTask(void *argument)
             int start_idx = (audioDataReadyFlag == 1) ? 0 : (AUDIO_BUFFER_SIZE / 2);
             int end_idx   = (audioDataReadyFlag == 1) ? (AUDIO_BUFFER_SIZE / 2) : AUDIO_BUFFER_SIZE;
 
-            // Clear the flag immediately so we don't double-process
             audioDataReadyFlag = 0;
 
-            uint64_t blockEnergy = 0; // 64-bit to prevent overflow when squaring 16-bit audio
+            uint64_t blockEnergy = 0;
 
-            // 1. Calculate the total energy of this audio chunk
-            for (int i = start_idx; i < end_idx; i+=4)
+            for (int i = start_idx; i < end_idx; i += 4)
             {
-            	int32_t sample = audioBuffer[i];
-            	blockEnergy += (sample < 0 ? -sample : sample); // Absolute value replacement
-
-                //int32_t sample = audioBuffer[i];
-                //blockEnergy += (sample * sample); // Sum of squares is standard for audio energy
+                int32_t sample = audioBuffer[i];
+                blockEnergy += (sample < 0 ? -sample : sample);
             }
 
             uint32_t currentEnergy = blockEnergy / (AUDIO_BUFFER_SIZE / 2);
-            //uint32_t threash = (currentEnergy/ 100) & 0xFF00;
-            uint32_t threash = (currentEnergy) & 0xF700;
+            uint32_t threash = currentEnergy & 0xFF00;
 
-            if(threash > 0 && prevBuffer == 0){
-            	uint32_t risingEdge = osKernelGetTickCount();
+            uint32_t now = osKernelGetTickCount();
+
+            // --- Rising Edge: Signal geht von 0 auf aktiv ---
+            if (threash > 0 && !inPulse)
+            {
+                currRisingEdge = now;
+                inPulse = 1;
+
+                if (lastRisingEdge != 0)
+                {
+                    uint32_t interval = currRisingEdge - lastRisingEdge;
+
+                    if (interval >= MIN_BEAT_INTERVAL_MS)
+                    {
+                        bpmValue = 600000 / interval;
+                    }
+                }
+
+                lastRisingEdge  = currRisingEdge;
             }
+            // --- Falling Edge: Signal geht von aktiv auf 0 ---
+            else if (threash == 0 && inPulse)
+            {
+                currFallingEdge = now;
+                inPulse = 0;
+                lastFallingEdge = currFallingEdge;
 
-            if(threash > 0 && prevBuffer == 0){
-            	uint32_t currTime = osKernelGetTickCount();
-            	bpmValue = 600000 / (currTime - lastBeatTime);
+                // Mitte des aktuellen Pulses
+//                uint32_t currMidPoint = (currRisingEdge + currFallingEdge) / 2;
 
-            	prevBuffer = 20;
-            	lastBeatTime = currTime;
+                // BPM berechnen, wenn ein vorheriger Mittelpunkt bekannt ist
+/*                if (lastMidPoint != 0)
+                {
+                    uint32_t interval = currMidPoint - lastMidPoint;
+
+                    if (interval >= MIN_BEAT_INTERVAL_MS)
+                    {
+                        bpmValue = 600000 / interval;
+                    }
+                }
+                // Aktuellen Puls als letzten merken
+                lastMidPoint    = currMidPoint;
+*/
             }
-            else if (prevBuffer > 0){
-            	prevBuffer--;
-            }
-
       }
-
   }
   /* USER CODE END 5 */
 }
