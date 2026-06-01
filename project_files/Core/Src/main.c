@@ -931,7 +931,7 @@ void StartDefaultTask(void *argument)
 
     AUDIO_IN_Init();
     AUDIO_IN_Start();
-    bpmValue = 1000; // Test baseline, scaled by 10 (100.0 BPM)
+    bpmValue = 0; // Test baseline, scaled by 10 (100.0 BPM)
 
     // --- BPM Algorithm State Variables ---
     uint32_t lastBeatTime = 0;
@@ -942,9 +942,10 @@ void StartDefaultTask(void *argument)
     const uint32_t MAX_BEAT_INTERVAL_MS = 5000; // Min ~30 BPM
 
     // BPM Smoothing History
-    #define BPM_HISTORY_SIZE 8
+    #define BPM_HISTORY_SIZE 4
     uint32_t bpmHistory[BPM_HISTORY_SIZE] = {0};
     uint8_t bpmIdx = 0;
+    int prevBuffer = 0;
 
   /* Infinite loop */
   for(;;)
@@ -960,66 +961,31 @@ void StartDefaultTask(void *argument)
             uint64_t blockEnergy = 0; // 64-bit to prevent overflow when squaring 16-bit audio
 
             // 1. Calculate the total energy of this audio chunk
-            for (int i = start_idx; i < end_idx; i++)
+            for (int i = start_idx; i < end_idx; i+=4)
             {
-                int32_t sample = audioBuffer[i];
-                blockEnergy += (sample * sample); // Sum of squares is standard for audio energy
+            	int32_t sample = audioBuffer[i];
+            	blockEnergy += (sample < 0 ? -sample : sample); // Absolute value replacement
+
+                //int32_t sample = audioBuffer[i];
+                //blockEnergy += (sample * sample); // Sum of squares is standard for audio energy
             }
 
             uint32_t currentEnergy = blockEnergy / (AUDIO_BUFFER_SIZE / 2);
-           // bpmValue= (currentEnergy/ 100) & 0xFF00;
-            // 2. Maintain a dynamic threshold (Low Pass Filter)
-            if (averageEnergy == 0) averageEnergy = currentEnergy; // Initialization
+            //uint32_t threash = (currentEnergy/ 100) & 0xFF00;
+            uint32_t threash = (currentEnergy) & 0xF700;
+            if(threash > 0 && prevBuffer == 0){
+            	uint32_t currTime = osKernelGetTickCount();
+            	bpmValue = 600000 / (currTime - lastBeatTime);
 
-            // Fast-decaying moving average (adjust weights to tune responsiveness)
-            averageEnergy = (averageEnergy * 15 + currentEnergy) / 16;
-
-            // 3. Beat Detection Condition
-            // If the current energy is significantly higher than the average (e.g., 1.5x)
-            // Note: Using integer math `(avg * 3) / 2` to represent 1.5x to save MCU cycles.
-            if (currentEnergy > (averageEnergy * 10))
-            {
-                // Note: osKernelGetTickCount() assumes 1 tick = 1ms.
-                // Adjust if your configTICK_RATE_HZ is not 1000.
-                uint32_t currentTime = osKernelGetTickCount();
-                uint32_t delta = currentTime - lastBeatTime;
-
-                // 4. Debounce and Validate
-                // Ensure the time between beats is within a realistic musical range
-                if (delta > MIN_BEAT_INTERVAL_MS && delta < MAX_BEAT_INTERVAL_MS)
-                {
-                    // 5. Calculate Scaled BPM
-                    // Normal BPM = 60,000ms / delta.
-                    // To scale by 10 (e.g., 120.5 -> 1205), we use 600,000 / delta.
-                    uint32_t rawBpmScaled = 600000 / delta;
-
-                    // 6. Smooth the output
-                    bpmHistory[bpmIdx] = rawBpmScaled;
-                    bpmIdx = (bpmIdx + 1) % BPM_HISTORY_SIZE;
-
-                    uint32_t bpmSum = 0;
-                    uint8_t validBeats = 0;
-
-                    for (int k = 0; k < BPM_HISTORY_SIZE; k++) {
-                        if (bpmHistory[k] > 0) { // Ignore uninitialized slots
-                            bpmSum += bpmHistory[k];
-                            validBeats++;
-                        }
-                    }
-
-                    if (validBeats > 0) {
-                       bpmValue = bpmSum / validBeats; // Final output
-                    }
-                }
-
-                // Update timestamp if enough time passed to count as a new physical beat
-                if (delta > MIN_BEAT_INTERVAL_MS) {
-                    lastBeatTime = currentTime;
-                }
+            	prevBuffer = 20;
+            	lastBeatTime = currTime;
             }
+            else if (prevBuffer > 0){
+            	prevBuffer--;
+            }
+
       }
 
-      osDelay(1);
   }
   /* USER CODE END 5 */
 }
