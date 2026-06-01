@@ -929,7 +929,33 @@ void StartDefaultTask(void *argument)
 
     AUDIO_IN_Init();
     AUDIO_IN_Start();
-    bpmValue = 100; // Test baseline
+    bpmValue = 0;
+
+    // --- Edge Detection State ---
+    uint32_t currRisingEdge  = 0;
+    uint32_t lastRisingEdge  = 0;
+    uint32_t currFallingEdge = 0;
+    uint8_t  inPulse         = 0;
+
+    // --- Energie-Glättung (gleitender Durchschnitt über N Blöcke) ---
+    #define ENERGY_AVG_SIZE  8
+    uint32_t energyHistory[ENERGY_AVG_SIZE] = {0};
+    uint8_t  energyIdx = 0;
+    uint32_t energySum = 0;
+
+    // --- BPM-Glättung (Median-ähnlich: Ringpuffer + Mittelwert) ---
+    #define BPM_AVG_SIZE  4
+    uint32_t intervalHistory[BPM_AVG_SIZE] = {0};
+    uint8_t  intervalIdx     = 0;
+    uint8_t  intervalCount   = 0;  // wie viele gültige Werte bisher
+
+    // Refractory: Mindestabstand zwischen zwei Beats
+    const uint32_t MIN_BEAT_INTERVAL_MS  = 300;  // ~200 BPM max
+    const uint32_t MAX_BEAT_INTERVAL_MS  = 2000; // ~30 BPM min
+
+    // Threshold-Faktor: Beat wenn aktuelle Energie > Faktor * gleitender Mittelwert
+    // 1.5f bedeutet: Signal muss 50% über dem Durchschnitt liegen
+    const float THRESHOLD_FACTOR = 1.5f;
 
   /* Infinite loop */
   for(;;)
@@ -938,28 +964,96 @@ void StartDefaultTask(void *argument)
       {
             int start_idx = (audioDataReadyFlag == 1) ? 0 : (AUDIO_BUFFER_SIZE / 2);
             int end_idx   = (audioDataReadyFlag == 1) ? (AUDIO_BUFFER_SIZE / 2) : AUDIO_BUFFER_SIZE;
-            // Clear the flag immediately so we don't double-process
             audioDataReadyFlag = 0;
 
-            int16_t maxPeak = 0;
-
-            for (int i = start_idx; i < end_idx; i++)
+            // --- 1. Energie des aktuellen Blocks berechnen ---
+            uint64_t blockEnergy = 0;
+            for (int i = start_idx; i < end_idx; i += 4)
             {
-              int16_t sample = audioBuffer[i];
-
-              if (sample < 0) {
-                sample = -sample; // Absolute value
-              }
-
-              if (sample > maxPeak) {
-                maxPeak = sample;
-              }
+                int32_t sample = audioBuffer[i];
+                blockEnergy += (sample < 0 ? -sample : sample);
             }
+            uint32_t currentEnergy = (uint32_t)(blockEnergy / ((end_idx - start_idx) / 4));
 
-            bpmValue = maxPeak;
+            // --- 2. Gleitenden Durchschnitt der Energie aktualisieren ---
+            energySum -= energyHistory[energyIdx];   // alten Wert rausrechnen
+            energyHistory[energyIdx] = currentEnergy;
+            energySum += currentEnergy;              // neuen Wert reinrechnen
+            energyIdx = (energyIdx + 1) % ENERGY_AVG_SIZE;
+
+            uint32_t avgEnergy = energySum / ENERGY_AVG_SIZE;
+
+            // --- 3. Dynamischer Threshold: aktuell > Faktor * Durchschnitt ---
+            //        Mindest-Schwelle verhindert Trigger bei absolutem Stille-Rauschen
+            uint32_t dynamicThreshold = (uint32_t)(avgEnergy * THRESHOLD_FACTOR);
+            const uint32_t MIN_NOISE_FLOOR = 100; // anpassen je nach Mikrofon-Rauschen
+            uint8_t aboveThreshold = (currentEnergy > dynamicThreshold) &&
+                                     (currentEnergy > MIN_NOISE_FLOOR);
+
+            uint32_t now = osKernelGetTickCount();
+
+            // --- 4. Rising Edge ---
+            if (aboveThreshold && !inPulse)
+            {
+                currRisingEdge = now;
+                inPulse = 1;
+
+                if (lastRisingEdge != 0)
+                {
+                    uint32_t interval = currRisingEdge - lastRisingEdge;
+
+                    if (interval >= MIN_BEAT_INTERVAL_MS &&
+                        interval <= MAX_BEAT_INTERVAL_MS)
+                    {
+                        // Interval in Ringpuffer schreiben
+                        intervalHistory[intervalIdx] = interval;
+                        intervalIdx = (intervalIdx + 1) % BPM_AVG_SIZE;
+                        if (intervalCount < BPM_AVG_SIZE) intervalCount++;
+
+                        // BPM aus gemitteltem Interval berechnen
+                        uint32_t intervalSum = 0;
+                        for (uint8_t k = 0; k < intervalCount; k++)
+                            intervalSum += intervalHistory[k];
+                        uint32_t avgInterval = intervalSum / intervalCount;
+
+                        bpmValue = 600000 / avgInterval;
+                    }
+                }
+                lastRisingEdge = currRisingEdge;
+            }
+            // --- 5. Falling Edge (für spätere Midpoint-Berechnung vorbereitet) ---
+            else if (!aboveThreshold && inPulse)
+            {
+                currFallingEdge = now;
+                inPulse = 0;
+
+                // --- Midpoint-BPM (auskommentiert, zum späteren Aktivieren) ---
+                /*
+                uint32_t currMidPoint  = (currRisingEdge + currFallingEdge) / 2;
+
+                if (lastMidPoint != 0)
+                {
+                    uint32_t interval = currMidPoint - lastMidPoint;
+
+                    if (interval >= MIN_BEAT_INTERVAL_MS &&
+                        interval <= MAX_BEAT_INTERVAL_MS)
+                    {
+                        intervalHistory[intervalIdx] = interval;
+                        intervalIdx = (intervalIdx + 1) % BPM_AVG_SIZE;
+                        if (intervalCount < BPM_AVG_SIZE) intervalCount++;
+
+                        uint32_t intervalSum = 0;
+                        for (uint8_t k = 0; k < intervalCount; k++)
+                            intervalSum += intervalHistory[k];
+                        uint32_t avgInterval = intervalSum / intervalCount;
+
+                        bpmValue = 60000 / avgInterval;
+                    }
+                }
+                lastMidPoint = currMidPoint;
+                */
+            }
       }
-
-      osDelay(1);
   }
   /* USER CODE END 5 */
 }
