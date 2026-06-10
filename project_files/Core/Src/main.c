@@ -27,6 +27,23 @@
 /* USER CODE BEGIN Includes */
 #include "audio_in.h"
 #include "shared_data.h"
+
+#include "arm_math.h"
+
+#define SAMPLE_RATE     22050
+#define FFT_SIZE        512
+#define FFT_SIZE_HALF   (FFT_SIZE / 2)
+
+#define BASS_BIN_LOW    1                                           // ~31 Hz
+#define BASS_BIN_HIGH   ((uint32_t)(200.0f * FFT_SIZE / SAMPLE_RATE))  // ~6
+
+static arm_rfft_fast_instance_f32 fftInst;
+static float32_t sampleWindow[FFT_SIZE];
+static float32_t hannWindow[FFT_SIZE];
+static float32_t fftInput[FFT_SIZE];
+static float32_t fftOutput[FFT_SIZE];
+static float32_t fftMag[FFT_SIZE_HALF];
+static uint32_t  windowIdx = 0;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -927,6 +944,13 @@ void StartDefaultTask(void *argument)
     extern volatile uint8_t audioDataReadyFlag;
     extern int16_t audioBuffer[];
 
+    // --- FFT init ---
+    arm_rfft_fast_init_f32(&fftInst, FFT_SIZE);
+
+    // --- Precompute Hann window (constant, do once) ---
+    for (uint32_t n = 0; n < FFT_SIZE; n++)
+        hannWindow[n] = 0.5f * (1.0f - cosf(2.0f * PI * n / (FFT_SIZE - 1)));
+
     AUDIO_IN_Init();
     AUDIO_IN_Start();
     bpmValue = 0;
@@ -937,117 +961,114 @@ void StartDefaultTask(void *argument)
     uint32_t currFallingEdge = 0;
     uint8_t  inPulse         = 0;
 
-    // --- Energie-Glättung (gleitender Durchschnitt über N Blöcke) ---
+    // --- Energy smoothing (moving average over N FFT windows) ---
     #define ENERGY_AVG_SIZE  8
     uint32_t energyHistory[ENERGY_AVG_SIZE] = {0};
     uint8_t  energyIdx = 0;
     uint32_t energySum = 0;
 
-    // --- BPM-Glättung (Ringpuffer + Mittelwert) ---
+    // --- BPM smoothing (ring buffer + mean) ---
     #define BPM_AVG_SIZE  4
     uint32_t intervalHistory[BPM_AVG_SIZE] = {0};
     uint8_t  intervalIdx   = 0;
     uint8_t  intervalCount = 0;
 
-    // Refractory: Mindestabstand zwischen zwei Beats
+    // Refractory: min/max interval between beats
     const uint32_t MIN_BEAT_INTERVAL_MS = 300;   // ~200 BPM max
     const uint32_t MAX_BEAT_INTERVAL_MS = 2000;  // ~30 BPM min
 
-    // Threshold-Faktor: Signal muss X-fach über dem Durchschnitt liegen
-    const float THRESHOLD_FACTOR = 1.5f;
+    const float    THRESHOLD_FACTOR  = 1.5f;
+    const uint32_t MIN_NOISE_FLOOR   = 500;
+
+    // aboveThreshold persists between FFT windows so edge detection always runs
+    uint8_t aboveThreshold = 0;
 
   /* Infinite loop */
   for(;;)
   {
       if (audioDataReadyFlag > 0)
       {
-            int start_idx = (audioDataReadyFlag == 1) ? 0 : (AUDIO_BUFFER_SIZE / 2);
-            int end_idx   = (audioDataReadyFlag == 1) ? (AUDIO_BUFFER_SIZE / 2) : AUDIO_BUFFER_SIZE;
-            audioDataReadyFlag = 0;
+          int start_idx = (audioDataReadyFlag == 1) ? 0 : (AUDIO_BUFFER_SIZE / 2);
+          int end_idx   = (audioDataReadyFlag == 1) ? (AUDIO_BUFFER_SIZE / 2) : AUDIO_BUFFER_SIZE;
+          audioDataReadyFlag = 0;
 
-            // --- 1. Energie des aktuellen Blocks berechnen ---
-            uint64_t blockEnergy = 0;
-            for (int i = start_idx; i < end_idx; i += 4)
-            {
-                int32_t sample = audioBuffer[i];
-                blockEnergy += (sample < 0 ? -sample : sample);
-            }
-            uint32_t currentEnergy = (uint32_t)(blockEnergy / ((end_idx - start_idx) / 4));
+          // --- 1. Fill sample window from this audio block ---
+          for (int i = start_idx; i < end_idx; i += 4)
+          {
+              sampleWindow[windowIdx++] = (float32_t)audioBuffer[i];
+          }
 
-            // --- 2. Gleitenden Durchschnitt der Energie aktualisieren ---
-            energySum -= energyHistory[energyIdx];
-            energyHistory[energyIdx] = currentEnergy;
-            energySum += currentEnergy;
-            energyIdx = (energyIdx + 1) % ENERGY_AVG_SIZE;
+          // --- 2. Run FFT only when window is full ---
+          if (windowIdx >= FFT_SIZE)
+          {
+              windowIdx = 0;
 
-            uint32_t avgEnergy = energySum / ENERGY_AVG_SIZE;
+              // Apply Hann window
+              for (uint32_t n = 0; n < FFT_SIZE; n++)
+                  fftInput[n] = sampleWindow[n] * hannWindow[n];
 
-            // --- 3. Dynamischer Threshold ---
-            uint32_t dynamicThreshold = (uint32_t)(avgEnergy * THRESHOLD_FACTOR);
-            const uint32_t MIN_NOISE_FLOOR = 100;
-            uint8_t aboveThreshold = (currentEnergy > dynamicThreshold) &&
-                                     (currentEnergy > MIN_NOISE_FLOOR);
+              // Forward real FFT
+              arm_rfft_fast_f32(&fftInst, fftInput, fftOutput, 0);
 
-            uint32_t now = osKernelGetTickCount();
+              // Magnitude spectrum
+              arm_cmplx_mag_f32(fftOutput, fftMag, FFT_SIZE_HALF);
 
-            // --- 4. Rising Edge ---
-            if (aboveThreshold && !inPulse)
-            {
-                currRisingEdge = now;
-                inPulse = 1;
+              // Sum bass band energy
+              float32_t bassEnergy = 0.0f;
+              for (uint32_t b = BASS_BIN_LOW; b <= BASS_BIN_HIGH; b++)
+                  bassEnergy += fftMag[b];
 
-                if (lastRisingEdge != 0)
-                {
-                    uint32_t interval = currRisingEdge - lastRisingEdge;
+              uint32_t currentEnergy = (uint32_t)bassEnergy;
 
-                    if (interval >= MIN_BEAT_INTERVAL_MS &&
-                        interval <= MAX_BEAT_INTERVAL_MS)
-                    {
-                        intervalHistory[intervalIdx] = interval;
-                        intervalIdx = (intervalIdx + 1) % BPM_AVG_SIZE;
-                        if (intervalCount < BPM_AVG_SIZE) intervalCount++;
+              // Update moving average
+              energySum -= energyHistory[energyIdx];
+              energyHistory[energyIdx] = currentEnergy;
+              energySum += currentEnergy;
+              energyIdx = (energyIdx + 1) % ENERGY_AVG_SIZE;
 
-                        uint32_t intervalSum = 0;
-                        for (uint8_t k = 0; k < intervalCount; k++)
-                            intervalSum += intervalHistory[k];
-                        uint32_t avgInterval = intervalSum / intervalCount;
+              uint32_t avgEnergy        = energySum / ENERGY_AVG_SIZE;
+              uint32_t dynamicThreshold = (uint32_t)(avgEnergy * THRESHOLD_FACTOR);
 
-                        bpmValue = 600000 / avgInterval;
-                    }
-                }
-                lastRisingEdge = currRisingEdge;
-            }
-            // --- 5. Falling Edge (für spätere Midpoint-Berechnung vorbereitet) ---
-            else if (!aboveThreshold && inPulse)
-            {
-                currFallingEdge = now;
-                inPulse = 0;
+              aboveThreshold = (bassEnergy > dynamicThreshold) &&
+                               (bassEnergy > MIN_NOISE_FLOOR);
+          }
 
-                /*
-                uint32_t currMidPoint = (currRisingEdge + currFallingEdge) / 2;
+          // --- 3. Edge detection runs every audio block ---
+          uint32_t now = osKernelGetTickCount();
 
-                if (lastMidPoint != 0)
-                {
-                    uint32_t interval = currMidPoint - lastMidPoint;
+          // Rising edge: beat onset
+          if (aboveThreshold && !inPulse)
+          {
+              currRisingEdge = now;
+              inPulse = 1;
 
-                    if (interval >= MIN_BEAT_INTERVAL_MS &&
-                        interval <= MAX_BEAT_INTERVAL_MS)
-                    {
-                        intervalHistory[intervalIdx] = interval;
-                        intervalIdx = (intervalIdx + 1) % BPM_AVG_SIZE;
-                        if (intervalCount < BPM_AVG_SIZE) intervalCount++;
+              if (lastRisingEdge != 0)
+              {
+                  uint32_t interval = currRisingEdge - lastRisingEdge;
 
-                        uint32_t intervalSum = 0;
-                        for (uint8_t k = 0; k < intervalCount; k++)
-                            intervalSum += intervalHistory[k];
-                        uint32_t avgInterval = intervalSum / intervalCount;
+                  if (interval >= MIN_BEAT_INTERVAL_MS &&
+                      interval <= MAX_BEAT_INTERVAL_MS)
+                  {
+                      intervalHistory[intervalIdx] = interval;
+                      intervalIdx = (intervalIdx + 1) % BPM_AVG_SIZE;
+                      if (intervalCount < BPM_AVG_SIZE) intervalCount++;
 
-                        bpmValue = 60000 / avgInterval;
-                    }
-                }
-                lastMidPoint = currMidPoint;
-                */
-            }
+                      uint32_t intervalSum = 0;
+                      for (uint8_t k = 0; k < intervalCount; k++)
+                          intervalSum += intervalHistory[k];
+                      uint32_t avgInterval = intervalSum / intervalCount;
+
+                      bpmValue = 600000 / avgInterval;   // ms/min ÷ ms/beat = BPM
+                  }
+              }
+              lastRisingEdge = currRisingEdge;
+          }
+          // Falling edge
+          else if (!aboveThreshold && inPulse)
+          {
+              currFallingEdge = now;
+              inPulse = 0;
+          }
       }
   }
   /* USER CODE END 5 */
