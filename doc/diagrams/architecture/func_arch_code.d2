@@ -1,0 +1,38 @@
+title: |md
+  # Systemarchitektur: Funktionale Ebene
+| {near: top-center}
+
+start: System-Start {shape: oval; style.fill: "#1a3a5c"; style.font-color: white}
+
+audio_init: <ArchEl_1> AUDIO_IN_Init()\nAUDIO_IN_Start() {style.fill: "#1e4d7b"; style.font-color: white}
+
+wait: audioDataReadyFlag > 0? {shape: diamond; style.fill: "#5c3d00"; style.font-color: white}
+
+read: <ArchEl_2> Puffer auslesen\n {style.fill: "#0d4f3c"; style.font-color: white}
+
+fft: <ArchEl_3> Hann-Fenster\n→ FFT → Magnitudenspektrum {style.fill: "#0d4f3c"; style.font-color: white}
+
+bass: <ArchEl_4> Bass-Energie summieren\n und Dynamic Threshold berechnen {style.fill: "#0d4f3c"; style.font-color: white}
+
+edge: Rising Edge?\n(aboveThreshold && !inPulse) {shape: diamond; style.fill: "#5c3d00"; style.font-color: white}
+
+bpm: <ArchEl_5> BPM berechnen\n und anzeigen {style.fill: "#2d5016"; style.font-color: white}
+
+fall: Falling Edge? {shape: diamond; style.fill: "#5c3d00"; style.font-color: white}
+
+reset: inPulse = false {style.fill: "#0d4f3c"; style.font-color: white}
+
+dma_cb: <ArchEl_6> DMA-Callbacks\n→ setzt audioDataReadyFlag {style.fill: "#4a1a6b"; style.font-color: white}
+
+start -> audio_init -> wait
+wait -> read: Ja
+wait -> wait: Nein
+read -> fft
+fft -> bass -> edge
+edge -> bpm: Rising Edge
+edge -> fall: sonst
+bpm -> fall
+fall -> reset: Falling Edge
+fall -> wait: sonst
+reset -> wait
+dma_cb -> wait: Flag setzen {style.stroke-dash: 4; style.stroke: "#9b59b6"}
