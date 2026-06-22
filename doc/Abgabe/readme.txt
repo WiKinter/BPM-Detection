@@ -1,0 +1,12 @@
+In der Abgabe:
+- funktionale Architektur: "func_arch_svg"
+- physikalische Architektur: "phy_arch_pdf"
+- Sprintziele: "Sprintziele"
+- Anforderungen, User Stories, Test Cases, Design Entscheidungen: "Stories_Req_Design_Test_G1"
+- Testprotokolle: "test_protokolle"
+- Kapazitätsplanung: "https://github.com/WiKinter/BPM-Detection/wiki"
+- Kanban-Board: "https://github.com/users/WiKinter/projects/2/views/2"
+- Definition of Done und Estimate (ab Iteration 2): siehe DoD bei Beispiel Task: "DoD_example"
+- Retrospektive: "https://github.com/users/WiKinter/projects/2/views/14"
+- Burn-up Chart: "https://github.com/users/WiKinter/projects/2/insights"
+- Source-Code: "https://github.com/WiKinter/BPM-Detection/tree/main/project_files"
