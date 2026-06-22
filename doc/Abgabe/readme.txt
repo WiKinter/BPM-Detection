@@ -10,3 +10,5 @@ In der Abgabe:
 - Retrospektive: "https://github.com/users/WiKinter/projects/2/views/14"
 - Burn-up Chart: "https://github.com/users/WiKinter/projects/2/insights"
 - Source-Code: "https://github.com/WiKinter/BPM-Detection/tree/main/project_files"
+- Roadmap: "https://github.com/users/WiKinter/projects/2/views/4"
+- Backlog: "https://github.com/users/WiKinter/projects/2/views/1"
